@@ -1,0 +1,62 @@
+{
+  "isFull": false,
+  "list": [
+    {
+      "title": "基础用法",
+      "description": "宽表格在页面滚动时，底部未完全露出会显示浮动横向滚动条，拖动滑块可同步横向滚动",
+      "code": "./base.js",
+      "scope": [
+        {
+          "name": "_ReactStickyScroller",
+          "packageName": "@kne/current-lib_react-sticky-scroller",
+          "importStatement": "import * as _ReactStickyScroller from \"@kne/react-sticky-scroller\""
+        },
+        {
+          "packageName": "@kne/current-lib_react-sticky-scroller/dist/index.css"
+        },
+        {
+          "name": "antd",
+          "packageName": "antd"
+        }
+      ]
+    },
+    {
+      "title": "自定义滚动容器",
+      "description": "通过 getPortalContainer 指定独立滚动容器，浮动条以 sticky 方式贴在容器底部显示",
+      "code": "./scroll-container.js",
+      "scope": [
+        {
+          "name": "_ReactStickyScroller",
+          "packageName": "@kne/current-lib_react-sticky-scroller",
+          "importStatement": "import * as _ReactStickyScroller from \"@kne/react-sticky-scroller\""
+        },
+        {
+          "packageName": "@kne/current-lib_react-sticky-scroller/dist/index.css"
+        },
+        {
+          "name": "antd",
+          "packageName": "antd"
+        }
+      ]
+    },
+    {
+      "title": "配合 Ant Design Table",
+      "description": "默认自动识别 ant-table 横向滚动节点；也可通过 getScrollElement 自定义目标元素",
+      "code": "./table.js",
+      "scope": [
+        {
+          "name": "_ReactStickyScroller",
+          "packageName": "@kne/current-lib_react-sticky-scroller",
+          "importStatement": "import * as _ReactStickyScroller from \"@kne/react-sticky-scroller\""
+        },
+        {
+          "packageName": "@kne/current-lib_react-sticky-scroller/dist/index.css"
+        },
+        {
+          "name": "antd",
+          "packageName": "antd"
+        }
+      ]
+    }
+  ]
+}
