@@ -1,6 +1,7 @@
 .floating-scrollbar {
   position: fixed;
-  z-index: 998;
+  /* 低于 Modal/Drawer（antd zIndexPopupBase=1000）；勿挂 body 用过高 z-index，否则会盖住挂在 layout 内的弹层 */
+  z-index: 10;
   background: var(--bg-color-white, #ffffff);
   border: solid 1px var(--font-color-grey-4, #eeeeee);
   box-sizing: border-box;

@@ -54,7 +54,14 @@ const metricsEqual = (prev, next) => {
   return prev.visible === next.visible && prev.width === next.width && prev.thumbWidth === next.thumbWidth && prev.thumbLeft === next.thumbLeft && prev.left === next.left && prev.bottom === next.bottom;
 };
 
-const FloatingScrollBar = ({ metrics, onThumbDrag }) => {
+const resolvePortalMountNode = portalContainer => {
+  if (portalContainer && !isDocumentScrollContainer(portalContainer) && portalContainer.isConnected) {
+    return portalContainer;
+  }
+  return document.body;
+};
+
+const FloatingScrollBar = ({ metrics, onThumbDrag, portalContainer }) => {
   const startRef = useRef(0);
   const [moving, setMoving] = useState(false);
   const onThumbDragRef = useRef(onThumbDrag);
@@ -81,6 +88,8 @@ const FloatingScrollBar = ({ metrics, onThumbDrag }) => {
     }
     setMoving(false);
   };
+
+  const mountNode = resolvePortalMountNode(portalContainer);
 
   return createPortal(
     <div
@@ -123,12 +132,13 @@ const FloatingScrollBar = ({ metrics, onThumbDrag }) => {
         onPointerCancel={endDrag}
       />
     </div>,
-    document.body
+    mountNode
   );
 };
 
 const StickyScroller = forwardRef(({ className, enabled = true, getPortalContainer, getScrollElement = getDefaultScrollElement, children }, forwardedRef) => {
   const [metrics, setMetrics] = useState(null);
+  const [portalMount, setPortalMount] = useState(null);
   const containerRef = useRef(null);
   const scrollElRef = useRef(null);
   const metricsRef = useRef(null);
@@ -200,6 +210,7 @@ const StickyScroller = forwardRef(({ className, enabled = true, getPortalContain
       scrollElRef.current = null;
       metricsRef.current = null;
       setMetrics(null);
+      setPortalMount(null);
       return undefined;
     }
 
@@ -232,6 +243,8 @@ const StickyScroller = forwardRef(({ className, enabled = true, getPortalContain
       portalContainer = nextPortal;
       useContainerAnchor = nextUseContainerAnchor;
       borderBottomRef.current = useContainerAnchor ? readBorderBottom(portalContainer) : 0;
+      // 与 TablePage/Modal 的 getPopupContainer 同树挂载，避免 body 上高 z-index 盖住弹层
+      setPortalMount(useContainerAnchor ? nextPortal : null);
 
       if (useContainerAnchor && portalContainer) {
         portalContainer.addEventListener('scroll', scheduleUpdateMetrics, { passive: true });
@@ -344,7 +357,7 @@ const StickyScroller = forwardRef(({ className, enabled = true, getPortalContain
       <div ref={setContainerRef} className={className}>
         {children}
       </div>
-      {enabled ? <FloatingScrollBar metrics={metrics} onThumbDrag={handleThumbDrag} /> : null}
+      {enabled ? <FloatingScrollBar metrics={metrics} onThumbDrag={handleThumbDrag} portalContainer={portalMount} /> : null}
     </>
   );
 });
