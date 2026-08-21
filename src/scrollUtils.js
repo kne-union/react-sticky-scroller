@@ -22,9 +22,11 @@ export const getViewportRect = () => {
   };
 };
 
-/** 仅以真实横向溢出为准，避免 overflow:auto 空容器误命中 */
+/** 小于该像素差视为无实质横向溢出（亚像素/边框/舍入），避免滑块几乎铺满仍显示浮动条 */
+const MIN_HORIZONTAL_OVERFLOW_PX = 8;
+
 export const isHorizontallyOverflowing = element => {
-  return !!element && element.scrollWidth > element.clientWidth + 1;
+  return !!element && element.scrollWidth - element.clientWidth > MIN_HORIZONTAL_OVERFLOW_PX;
 };
 
 /**

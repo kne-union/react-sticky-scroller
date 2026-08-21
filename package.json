@@ -1,6 +1,6 @@
 {
   "name": "@kne/react-sticky-scroller",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "为宽内容提供底部悬停的浮动横向滚动条",
   "syntax": {
     "esmodules": true
