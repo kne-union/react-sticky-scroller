@@ -57,6 +57,37 @@
           "packageName": "antd"
         }
       ]
+    },
+    {
+      "title": "SystemLayout 贴底与弹层层级",
+      "description": "参考 components-admin BizUnit system-layout-next：PureGlobal + SystemLayout + Page；验证浮动横条贴滚动容器底部，以及 components-core useModal 遮罩层级",
+      "isFull": true,
+      "code": "./system-layout.js",
+      "scope": [
+        {
+          "name": "_ReactStickyScroller",
+          "packageName": "@kne/current-lib_react-sticky-scroller",
+          "importStatement": "import * as _ReactStickyScroller from \"@kne/react-sticky-scroller\""
+        },
+        {
+          "packageName": "@kne/current-lib_react-sticky-scroller/dist/index.css"
+        },
+        {
+          "name": "remoteLoader",
+          "packageName": "@kne/remote-loader"
+        },
+        {
+          "name": "_systemLayout",
+          "packageName": "@kne/system-layout"
+        },
+        {
+          "packageName": "@kne/system-layout/dist/index.css"
+        },
+        {
+          "name": "antd",
+          "packageName": "antd"
+        }
+      ]
     }
   ]
 }

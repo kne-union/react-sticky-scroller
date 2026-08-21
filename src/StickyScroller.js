@@ -9,17 +9,44 @@ const BAR_HEIGHT = 15;
 const THUMB_MARGIN = 2;
 const MUTATION_REBIND_MS = 64;
 
-const getContainerBottomOffset = (container, borderBottom) => {
-  const rect = container.getBoundingClientRect();
-  // 贴容器可视区域底边（border 内侧），不受 padding 影响
-  return Math.round(window.innerHeight - rect.bottom + borderBottom);
-};
-
 const readBorderBottom = container => {
   if (!container) {
     return 0;
   }
   return parseFloat(getComputedStyle(container).borderBottomWidth) || 0;
+};
+
+/**
+ * 挂载点与「贴底参照」分离：
+ * - 贴底/显隐仍用 getPortalContainer（SystemLayout 下多为 simplebar-content-wrapper）
+ * - 优先挂到 kne-responsive-boundary（与 Modal 同树）
+ * - 勿挂进 content-wrapper：其 transform 会困住 fixed
+ */
+const resolvePortalMountNode = portalContainer => {
+  if (!portalContainer || isDocumentScrollContainer(portalContainer) || !portalContainer.isConnected) {
+    return document.body;
+  }
+  if (typeof portalContainer.closest === 'function') {
+    const boundary = portalContainer.closest('.kne-responsive-boundary');
+    if (boundary) {
+      return boundary;
+    }
+    const simplebarHost = portalContainer.closest('[data-simplebar]');
+    if (simplebarHost && simplebarHost !== portalContainer) {
+      return simplebarHost;
+    }
+  }
+  // 自定义 overflow 容器：挂到父节点做 absolute（相对父盒贴滚动口底），避免挂在滚动口内跟着滚，也避开外层 transform 困 fixed
+  const parent = portalContainer.parentElement;
+  if (parent && parent !== document.body && parent !== document.documentElement) {
+    return parent;
+  }
+  return portalContainer;
+};
+
+/** 挂载点是滚动口祖先（非滚动口自身）时可用 absolute，避免外层 SimpleBar transform 困住 fixed */
+const canUseAbsoluteOnMount = (mountNode, scrollPort) => {
+  return !!(mountNode && scrollPort && mountNode !== scrollPort && mountNode.contains(scrollPort));
 };
 
 const computeBarMetrics = (scrollEl, getPortalContainer, borderBottom) => {
@@ -34,16 +61,43 @@ const computeBarMetrics = (scrollEl, getPortalContainer, borderBottom) => {
   const scrollable = scrollWidth > clientWidth;
   const scrollRatio = scrollable ? scrollEl.scrollLeft / (scrollWidth - clientWidth) : 0;
   const visible = shouldShowFloatingScrollbar(scrollEl, null, portalContainer, rect);
-
-  const bottom = useContainerAnchor ? getContainerBottomOffset(portalContainer, borderBottom) : Math.round(window.innerHeight - getViewportRect().bottom);
-
-  return {
-    left: Math.round(rect.left),
+  const thumbLeft = Math.round(THUMB_MARGIN + maxThumbOffset * scrollRatio);
+  const common = {
     width: Math.round(trackWidth),
-    bottom,
     thumbWidth: Math.round(thumbWidth),
-    thumbLeft: Math.round(THUMB_MARGIN + maxThumbOffset * scrollRatio),
+    thumbLeft,
     visible
+  };
+
+  if (!useContainerAnchor) {
+    return {
+      ...common,
+      position: 'fixed',
+      left: Math.round(rect.left),
+      bottom: Math.round(window.innerHeight - getViewportRect().bottom)
+    };
+  }
+
+  const mountNode = resolvePortalMountNode(portalContainer);
+  const scrollPortRect = portalContainer.getBoundingClientRect();
+
+  // layout / simplebar 根：absolute 相对挂载点，不受外层 example SimpleBar transform 影响
+  if (canUseAbsoluteOnMount(mountNode, portalContainer)) {
+    const mountRect = mountNode.getBoundingClientRect();
+    return {
+      ...common,
+      position: 'absolute',
+      left: Math.round(rect.left - mountRect.left),
+      bottom: Math.round(mountRect.bottom - scrollPortRect.bottom + borderBottom)
+    };
+  }
+
+  // 自定义滚动容器：挂载点即滚动口，只能用 fixed + 视口坐标贴容器底
+  return {
+    ...common,
+    position: 'fixed',
+    left: Math.round(rect.left),
+    bottom: Math.round(window.innerHeight - scrollPortRect.bottom + borderBottom)
   };
 };
 
@@ -51,14 +105,7 @@ const metricsEqual = (prev, next) => {
   if (!prev || !next) {
     return prev === next;
   }
-  return prev.visible === next.visible && prev.width === next.width && prev.thumbWidth === next.thumbWidth && prev.thumbLeft === next.thumbLeft && prev.left === next.left && prev.bottom === next.bottom;
-};
-
-const resolvePortalMountNode = portalContainer => {
-  if (portalContainer && !isDocumentScrollContainer(portalContainer) && portalContainer.isConnected) {
-    return portalContainer;
-  }
-  return document.body;
+  return prev.visible === next.visible && prev.width === next.width && prev.thumbWidth === next.thumbWidth && prev.thumbLeft === next.thumbLeft && prev.left === next.left && prev.bottom === next.bottom && prev.position === next.position;
 };
 
 const FloatingScrollBar = ({ metrics, onThumbDrag, portalContainer }) => {
@@ -95,6 +142,7 @@ const FloatingScrollBar = ({ metrics, onThumbDrag, portalContainer }) => {
     <div
       className={classnames(style['floating-scrollbar'], 'react-sticky-scroller-bar')}
       style={{
+        position: metrics.position,
         left: metrics.left,
         width: metrics.width,
         height: BAR_HEIGHT,
@@ -224,13 +272,39 @@ const StickyScroller = forwardRef(({ className, enabled = true, getPortalContain
     let portalContainer = null;
     let useContainerAnchor = false;
     let portalResizeObserver = null;
+    let mountResizeObserver = null;
     let mutationTimer = null;
+    let mountNode = null;
+    let portalPositionPatched = false;
+    let previousPortalPosition = '';
+
+    const clearPortalPositionPatch = () => {
+      if (portalPositionPatched && mountNode) {
+        mountNode.style.position = previousPortalPosition;
+        portalPositionPatched = false;
+        previousPortalPosition = '';
+      }
+    };
+
+    const ensureMountPositioned = target => {
+      clearPortalPositionPatch();
+      if (!target || target === document.body) {
+        return;
+      }
+      if (getComputedStyle(target).position === 'static') {
+        previousPortalPosition = target.style.position;
+        target.style.position = 'relative';
+        portalPositionPatched = true;
+      }
+    };
 
     const refreshPortalAnchor = () => {
       const nextPortal = resolvePortalContainer();
       const nextUseContainerAnchor = !isDocumentScrollContainer(nextPortal);
+      const nextMount = nextUseContainerAnchor ? resolvePortalMountNode(nextPortal) : null;
+      const nextUseAbsolute = canUseAbsoluteOnMount(nextMount, nextPortal);
 
-      if (nextPortal === portalContainer && nextUseContainerAnchor === useContainerAnchor) {
+      if (nextPortal === portalContainer && nextUseContainerAnchor === useContainerAnchor && nextMount === mountNode) {
         return;
       }
 
@@ -239,14 +313,22 @@ const StickyScroller = forwardRef(({ className, enabled = true, getPortalContain
         portalResizeObserver?.disconnect();
         portalResizeObserver = null;
       }
+      mountResizeObserver?.disconnect();
+      mountResizeObserver = null;
+      clearPortalPositionPatch();
 
       portalContainer = nextPortal;
       useContainerAnchor = nextUseContainerAnchor;
+      mountNode = nextMount;
       borderBottomRef.current = useContainerAnchor ? readBorderBottom(portalContainer) : 0;
-      // 与 TablePage/Modal 的 getPopupContainer 同树挂载，避免 body 上高 z-index 盖住弹层
       setPortalMount(useContainerAnchor ? nextPortal : null);
 
       if (useContainerAnchor && portalContainer) {
+        if (nextUseAbsolute && mountNode) {
+          ensureMountPositioned(mountNode);
+          mountResizeObserver = new ResizeObserver(scheduleUpdateMetrics);
+          mountResizeObserver.observe(mountNode);
+        }
         portalContainer.addEventListener('scroll', scheduleUpdateMetrics, { passive: true });
         portalResizeObserver = new ResizeObserver(() => {
           borderBottomRef.current = readBorderBottom(portalContainer);
@@ -342,6 +424,8 @@ const StickyScroller = forwardRef(({ className, enabled = true, getPortalContain
       containerResizeObserver.disconnect();
       mutationObserver.disconnect();
       portalResizeObserver?.disconnect();
+      mountResizeObserver?.disconnect();
+      clearPortalPositionPatch();
       window.removeEventListener('scroll', scheduleUpdateMetrics, true);
       window.removeEventListener('resize', scheduleUpdateMetrics);
       window.visualViewport?.removeEventListener('resize', scheduleUpdateMetrics);
