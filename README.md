@@ -276,6 +276,139 @@ render(<TableExample />);
 
 ```
 
+- SystemLayout 贴底与弹层层级(全屏)
+- 参考 components-admin BizUnit system-layout-next：PureGlobal + SystemLayout + Page；验证浮动横条贴滚动容器底部，以及 components-core useModal 遮罩层级
+- _ReactStickyScroller(@kne/current-lib_react-sticky-scroller)[import * as _ReactStickyScroller from "@kne/react-sticky-scroller"],(@kne/current-lib_react-sticky-scroller/dist/index.css),remoteLoader(@kne/remote-loader),_systemLayout(@kne/system-layout),(@kne/system-layout/dist/index.css),antd(antd)
+
+```jsx
+const { default: StickyScroller } = _ReactStickyScroller;
+const { default: SystemLayout, Page } = _systemLayout;
+const { createWithRemoteLoader } = remoteLoader;
+const { Flex, Table, Button, Tag, Typography, Space } = antd;
+const { Paragraph, Text } = Typography;
+
+const baseUrl = '/sticky-system-layout';
+
+const columns = [
+  { title: '编号', dataIndex: 'id', width: 160, fixed: 'left' },
+  { title: '名称', dataIndex: 'name', width: 220 },
+  { title: '类型', dataIndex: 'type', width: 120 },
+  { title: '状态', dataIndex: 'status', width: 120 },
+  { title: '创建时间', dataIndex: 'createdAt', width: 140 },
+  { title: '更新时间', dataIndex: 'updatedAt', width: 140 },
+  { title: '负责人', dataIndex: 'owner', width: 120 },
+  { title: '备注', dataIndex: 'remark', width: 280 },
+  {
+    title: '操作',
+    key: 'action',
+    width: 140,
+    fixed: 'right',
+    render: () => (
+      <Space>
+        <Button type="link" size="small">
+          复制
+        </Button>
+        <Button type="link" size="small">
+          关闭
+        </Button>
+      </Space>
+    )
+  }
+];
+
+const dataSource = Array.from({ length: 48 }, (_, index) => ({
+  key: String(index + 1),
+  id: &#96;808303${String(100000000 + index)}&#96;,
+  name: &#96;V4_251029_软能力五选二_${index + 1}&#96;,
+  type: 'AI面试',
+  status: index % 3 === 0 ? '进行中' : '已关闭',
+  createdAt: &#96;2025-10-${String((index % 28) + 1).padStart(2, '0')}&#96;,
+  updatedAt: &#96;2025-11-${String((index % 28) + 1).padStart(2, '0')}&#96;,
+  owner: ['Alice', 'Bob', 'Carol'][index % 3],
+  remark: '宽表横向溢出，用于验证浮动横条贴 layout 滚动容器底部，以及弹窗遮罩层级'
+}));
+
+/**
+ * 参考 components-admin BizUnit/doc/system-layout-next.js：
+ * PureGlobal + SystemLayout + Page；滚动容器与弹层均走 components-core Global / Modal。
+ */
+const SystemLayoutExample = createWithRemoteLoader({
+  modules: [
+    'components-core:Global@PureGlobal',
+    'components-core:Global@useScrollElement',
+    'components-core:Modal@useModal'
+  ]
+})(({ remoteModules }) => {
+  const [PureGlobal, useScrollElement, useModal] = remoteModules;
+
+  const VerifyPanel = () => {
+    const getScrollElement = useScrollElement();
+    const modal = useModal();
+
+    return (
+      <Flex vertical gap={12}>
+        <div style={{ color: '#666', fontSize: 13, lineHeight: 1.8 }}>
+          <Paragraph style={{ marginBottom: 8 }}>
+            <Tag color="blue">贴底</Tag>
+            向下滚动内容区，宽表底部未完全露出时，浮动横条应贴在 SystemLayout 滚动容器底部。
+          </Paragraph>
+          <Paragraph style={{ marginBottom: 0 }}>
+            <Tag color="purple">层级</Tag>
+            使用 <Text code>components-core:Modal@useModal</Text> 打开弹窗；遮罩应盖住浮动横条。
+          </Paragraph>
+        </div>
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => {
+              modal({
+                title: '层级验证（components-core useModal）',
+                size: 'small',
+                children: (
+                  <Paragraph style={{ marginBottom: 0 }}>
+                    若修复正确：底部浮动横向滚动条应被灰色遮罩盖住。关闭后横条仍贴在内容区底部。
+                  </Paragraph>
+                )
+              });
+            }}
+          >
+            打开弹窗验证层级
+          </Button>
+        </Space>
+        <StickyScroller getPortalContainer={getScrollElement}>
+          <Table columns={columns} dataSource={dataSource} pagination={false} scroll={{ x: 1600 }} size="middle" />
+        </StickyScroller>
+      </Flex>
+    );
+  };
+
+  return (
+    <PureGlobal>
+      <SystemLayout
+        userInfo={{
+          name: '张明',
+          description: 'HR 管理员 · Sticky 验证'
+        }}
+        menu={{
+          base: baseUrl,
+          items: [
+            { path: '/', label: '宽表验证', icon: 'icon-assignment' },
+            { path: '/demo', label: '示例页', icon: 'icon-groups_2' }
+          ]
+        }}
+      >
+        <Page title="StickyScroller × SystemLayout">
+          <VerifyPanel />
+        </Page>
+      </SystemLayout>
+    </PureGlobal>
+  );
+});
+
+render(<SystemLayoutExample />);
+
+```
+
 ### API
 
 ### StickyScroller
