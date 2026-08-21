@@ -286,12 +286,13 @@ render(<TableExample />);
 const { default: StickyScroller } = _ReactStickyScroller;
 const { default: SystemLayout, Page } = _systemLayout;
 const { createWithRemoteLoader } = remoteLoader;
-const { Flex, Table, Button, Tag, Typography, Space } = antd;
+const { Flex, Table, Button, Tag, Typography, Space, Switch } = antd;
+const { useState, useMemo } = React;
 const { Paragraph, Text } = Typography;
 
 const baseUrl = '/sticky-system-layout';
 
-const columns = [
+const ALL_COLUMNS = [
   { title: '编号', dataIndex: 'id', width: 160, fixed: 'left' },
   { title: '名称', dataIndex: 'name', width: 220 },
   { title: '类型', dataIndex: 'type', width: 120 },
@@ -317,6 +318,9 @@ const columns = [
     )
   }
 ];
+
+/** 收起后仅保留少量列，总宽应小于常见内容区，用于验证浮动横条消失 */
+const COMPACT_COLUMN_KEYS = ['id', 'name', 'status', 'action'];
 
 const dataSource = Array.from({ length: 48 }, (_, index) => ({
   key: String(index + 1),
@@ -346,6 +350,16 @@ const SystemLayoutExample = createWithRemoteLoader({
   const VerifyPanel = () => {
     const getScrollElement = useScrollElement();
     const modal = useModal();
+    const [hideExtraColumns, setHideExtraColumns] = useState(false);
+
+    const columns = useMemo(() => {
+      if (!hideExtraColumns) {
+        return ALL_COLUMNS;
+      }
+      return ALL_COLUMNS.filter(col => COMPACT_COLUMN_KEYS.includes(col.dataIndex || col.key));
+    }, [hideExtraColumns]);
+
+    const scrollX = hideExtraColumns ? undefined : 1600;
 
     return (
       <Flex vertical gap={12}>
@@ -354,12 +368,16 @@ const SystemLayoutExample = createWithRemoteLoader({
             <Tag color="blue">贴底</Tag>
             向下滚动内容区，宽表底部未完全露出时，浮动横条应贴在 SystemLayout 滚动容器底部。
           </Paragraph>
-          <Paragraph style={{ marginBottom: 0 }}>
+          <Paragraph style={{ marginBottom: 8 }}>
             <Tag color="purple">层级</Tag>
             使用 <Text code>components-core:Modal@useModal</Text> 打开弹窗；遮罩应盖住浮动横条。
           </Paragraph>
+          <Paragraph style={{ marginBottom: 0 }}>
+            <Tag color="green">溢出</Tag>
+            打开「隐藏部分列」后表格不再横向溢出，浮动横条应消失；关闭后恢复宽表并再次出现横条。
+          </Paragraph>
         </div>
-        <Space>
+        <Space wrap>
           <Button
             type="primary"
             onClick={() => {
@@ -376,9 +394,13 @@ const SystemLayoutExample = createWithRemoteLoader({
           >
             打开弹窗验证层级
           </Button>
+          <Space>
+            <Switch checked={hideExtraColumns} onChange={setHideExtraColumns} />
+            <Text>隐藏部分列（验证横条消失）</Text>
+          </Space>
         </Space>
         <StickyScroller getPortalContainer={getScrollElement}>
-          <Table columns={columns} dataSource={dataSource} pagination={false} scroll={{ x: 1600 }} size="middle" />
+          <Table columns={columns} dataSource={dataSource} pagination={false} scroll={scrollX ? { x: scrollX } : undefined} size="middle" />
         </StickyScroller>
       </Flex>
     );

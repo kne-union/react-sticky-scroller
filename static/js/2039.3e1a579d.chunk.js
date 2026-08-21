@@ -1,1 +1,0 @@
-"use strict";(globalThis.webpackChunk_react_sticky_scroller_0_1_2||=[]).push([[2039],{2039(a,r,e){e.r(r),e.d(r,{createMinimalDocxPackage:()=>c.WX,getPart:()=>c._x,packageToArrayBuffer:()=>c.$$,parseDocx:()=>c.YS,withPart:()=>c.Qz});var c=e(92799);e(71124)}}]);
